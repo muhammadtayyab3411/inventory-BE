@@ -10,145 +10,6 @@ const sendMail = require('../helpers/sendMail');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = process.env;
 
-// const register = (req, res) => {
-//   const errors = validationResult(req);
-
-//   if (!errors.isEmpty()) {
-//     return res.status(400).json({ errors: errors.array() });
-//   }
-
-//   const secret = speakeasy.generateSecret({ length: 20 });
-
-//   db.query(
-//     `SELECT * FROM users WHERE LOWER(email) = LOWER(${db.escape(
-//       req.body.email
-//     )});`,
-//     (err, result) => {
-//       if (err) {
-//         return res.status(500).send({
-//           message: err,
-//         });
-//       }
-
-//       if (result && result.length) {
-//         return res.status(409).send({
-//           message: "This user already exists",
-//         });
-//       } else {
-//         bcrypt.hash(req.body.password, 10, (err, hash) => {
-//           if (err) {
-//             return res.status(400).send({
-//               message: err,
-//             });
-//           } else {
-//             db.query(
-//               `INSERT INTO users (name, email, password) VALUES ('${
-//                 req.body.name
-//               }', ${db.escape(req.body.email)}, ${db.escape(hash)});`,
-//               (err, result) => {
-//                 if (err) {
-//                   return res.status(400).send({
-//                     message: err,
-//                   });
-//                 }
-
-//                 qrcode.toDataURL(secret.otpauth_url, (err, dataUrl) => {
-//                   if (err) {
-//                     console.error("Error generating QR code:", err);
-//                     return res
-//                       .status(500)
-//                       .json({ message: "Error generating QR code" });
-//                   }
-
-//                   // Send the QR code data URL and user data to the client
-//                   return res.json({
-//                     qrCode: dataUrl,
-//                     user: {
-//                       id: result.insertId,
-//                       name: req.body.name,
-//                       email: req.body.email,
-//                     },
-//                   });
-//                 });
-//               }
-//             );
-//           }
-//         });
-//       }
-//     }
-//   );
-// };
-
-// const register = (req, res) => {
-//   const errors = validationResult(req);
-
-//   if (!errors.isEmpty())
-//     return res.status(400).json({ errors: errors.array() });
-
-//   const secret = speakeasy.generateSecret({ length: 20 });
-
-//   db.query(
-//     `SELECT * FROM users WHERE LOWER(email) = LOWER(${db.escape(
-//       req.body.email
-//     )});`,
-//     (err, result) => {
-//       if (err) {
-//         return res.status(500).send({
-//           message: err,
-//         });
-//       }
-
-//       if (result && result.length) {
-//         return res.status(409).send({
-//           message: 'This user already exists',
-//         });
-//       } else {
-//         bcrypt.hash(req.body.password, 10, (err, hash) => {
-//           if (err) {
-//             return res.status(400).send({
-//               message: err,
-//             });
-//           } else {
-//             db.query(
-//               `INSERT INTO users (name, email, password, secret_key) VALUES ('${
-//                 req.body.name
-//               }', ${db.escape(req.body.email)}, ${db.escape(hash)}, '${
-//                 secret.base32
-//               }');`,
-//               (err, result) => {
-//                 if (err) {
-//                   return res.status(400).send({
-//                     message: err,
-//                   });
-//                 }
-
-//                 qrcode.toDataURL(secret.otpauth_url, (err, dataUrl) => {
-//                   if (err) {
-//                     console.error('Error generating QR code:', err);
-//                     return res
-//                       .status(500)
-//                       .json({ message: 'Error generating QR code' });
-//                   }
-
-//                   // Send the QR code data URL and user data to the client
-//                   return res.json({
-//                     qrCode: dataUrl,
-//                     user: {
-//                       id: result.insertId,
-//                       name: req.body.name,
-//                       email: req.body.email,
-//                     },
-//                   });
-//                 });
-//               }
-//             );
-//           }
-//         });
-//       }
-//     }
-//   );
-// };
-
 const register = async (req, res) => {
   const errors = validationResult(req);
 
@@ -156,7 +17,7 @@ const register = async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const secret = speakeasy.generateSecret({ length: 20 });
+  const secret = speakeasy.generateSecret({ name: 'Koboweb', length: 20 });
 
   try {
     const existingUser = await getUserByEmail(req.body.email);
@@ -166,15 +27,12 @@ const register = async (req, res) => {
     }
 
     const hash = await hashPassword(req.body.password);
-
-    const result = await insertUser({
-      name: req.body.name,
-      email: req.body.email,
-      hash,
-      secretKey: secret.base32,
-    });
-
     const qrCodeDataUrl = await generateQRCode(secret.otpauth_url);
+
+    const result = await executeQuery(
+      'INSERT INTO users (name, email, password, secret_key, qrCode) VALUES (?, ?, ?, ?, ?)',
+      [req.body.name, req.body.email, hash, secret.hex, qrCodeDataUrl]
+    );
 
     // Send the QR code data URL and user data to the client
     return res.json({
@@ -190,56 +48,53 @@ const register = async (req, res) => {
   }
 };
 
-// const enable2FA = (req, res) => {
-//   const { id, otp } = req.body;
+const getQRCode = async (req, res) => {
+  const { userId } = req.body;
 
-//   // Fetch the user's secret key from the database
-//   const query = 'SELECT secret_key FROM users WHERE id = ?';
-//   db.query(query, [id], (err, result) => {
-//     if (err) {
-//       console.error('Error fetching user data from the database:', err);
-//       return res.status(500).json({ message: 'Error enabling 2FA' });
-//     }
+  if (!userId) return res.status(400).send('No user specified');
 
-//     // Verify the OTP using the secret key
-//     const secret = result[0].secret_key;
-//     const verified = speakeasy.totp.verify({
-//       secret,
-//       encoding: 'base32',
-//       token: otp,
-//     });
+  const result = await executeQuery('SELECT qrCode FROM users WHERE id = ?', [
+    userId,
+  ]);
 
-//     if (verified) {
-//       return res.json({ message: '2FA enabled successfully' });
-//     } else {
-//       // OTP is invalid
-//       return res.status(401).json({ message: 'Invalid OTP' });
-//     }
-//   });
-// };
+  res.status(200).send(result[0]);
+};
 
 const enable2FA = async (req, res) => {
   try {
-    const { id, otp } = req.body;
+    const { otp, email } = req.body;
 
-    // Fetch the user's secret key from the database
-    const query = 'SELECT secret_key FROM users WHERE id = ?';
-    const result = await executeQuery(query, [id]);
+    // Fetch user using email
+    let user = await getUserByEmail(email);
 
-    if (result.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    if (user.length === 0) return res.status(404).send('user not found');
+
+    user = user[0];
 
     // Verify the OTP using the secret key
-    const secret = result[0].secret_key;
+    const secret = user.secret_key;
+
     const verified = speakeasy.totp.verify({
       secret,
-      encoding: 'base32',
+      encoding: 'hex',
       token: otp,
     });
 
     if (verified) {
-      return res.json({ message: '2FA enabled successfully' });
+      await executeQuery('UPDATE users SET is_verified = ? WHERE id = ?', [
+        true,
+        user.id,
+      ]);
+
+      const token = jwt.sign(
+        { id: user.id, is_admin: user.is_admin },
+        JWT_SECRET,
+        {
+          expiresIn: '31d',
+        }
+      );
+
+      return res.json({ message: '2FA enabled successfully', token });
     } else {
       // OTP is invalid
       return res.status(401).json({ message: 'Invalid OTP' });
@@ -249,63 +104,6 @@ const enable2FA = async (req, res) => {
     return res.status(500).json({ message: 'Error enabling 2FA' });
   }
 };
-
-// const login = (req, res) => {
-//   const errors = validationResult(req);
-
-//   if (!errors.isEmpty()) {
-//     return res.status(400).json({ errors: errors.array() });
-//   }
-
-//   db.query(
-//     `SELECT * FROM users WHERE email = ${db.escape(req.body.email)};`,
-//     (err, result) => {
-//       if (err) {
-//         return res.status(400).send({
-//           message: err,
-//         });
-//       }
-
-//       if (!result.length) {
-//         return res.status(401).send({
-//           message: 'Email or Password is incorrect',
-//         });
-//       }
-
-//       bcrypt.compare(
-//         req.body.password,
-//         result[0]['password'],
-//         (bcryptErr, bcryptResult) => {
-//           if (bcryptErr) {
-//             return res.status(400).send({
-//               message: bcryptErr,
-//             });
-//           }
-//           if (bcryptResult) {
-//             const token = jwt.sign(
-//               { id: result[0]['id'], is_admin: result[0]['is_admin'] },
-//               JWT_SECRET,
-//               { expiresIn: '31d' }
-//             );
-//             res.cookie('token', token);
-//             db.query(
-//               `UPDATE users SET last_login = now() WHERE id = '${result[0]['id']}'`
-//             );
-//             return res.status(200).send({
-//               message: 'Successfully logged in',
-//               token,
-//               user: result[0],
-//             });
-//           }
-
-//           return res.status(401).send({
-//             message: 'Password is incorrect',
-//           });
-//         }
-//       );
-//     }
-//   );
-// };
 
 const login = async (req, res) => {
   const errors = validationResult(req);
@@ -329,16 +127,9 @@ const login = async (req, res) => {
     );
 
     if (bcryptResult) {
-      const token = jwt.sign(
-        { id: result[0].id, is_admin: result[0].is_admin },
-        JWT_SECRET,
-        { expiresIn: '31d' }
-      );
-      res.cookie('token', token);
       await updateLastLogin(result[0].id);
       return res.status(200).send({
         message: 'Successfully logged in',
-        token,
         user: result[0],
       });
     }
@@ -350,63 +141,6 @@ const login = async (req, res) => {
   }
 };
 
-// const forgetPassword = (req, res) => {
-//   const errors = validationResult(req);
-
-//   if (!errors.isEmpty()) {
-//     return res.status(400).json({ errors: errors.array() });
-//   }
-
-//   const email = req.body.email;
-//   db.query(
-//     `SELECT * FROM users where email=? limit 1`,
-//     email,
-//     function (error, result, fields) {
-//       if (error) {
-//         return res.status(400).json({ message: error });
-//       }
-
-//       if (result.length > 0) {
-//         let mailSubject = 'Forget Password';
-//         const randomString = randomstring.generate();
-//         let content =
-//           `<p>Hi, ` +
-//           result[0].name +
-//           ` \
-//             Please <a a href="http://localhost:3000/reset-password?token=` +
-//           randomString +
-//           `">Click here</a> to reset your password</p>\
-//         `;
-//         // let content = `<p>Hi, `+result[0].name + ` \
-//         // //     Please <a href="http://localhost:8000/reset-password?token=+`randomString+`">Click Here</a> to reset your password</p>\
-//         // // `
-
-//         sendMail(email, mailSubject, content);
-
-//         db.query(
-//           `DELETE FROM password_resets WHERE email=${db.escape(
-//             result[0].email
-//           )}`
-//         );
-
-//         db.query(
-//           `INSERT INTO password_resets (email, token) VALUES(${db.escape(
-//             result[0].email
-//           )}, '${randomString}')`
-//         );
-
-//         return res.status(200).send({
-//           message: 'Email Sent Successfully for resetting password',
-//         });
-//       }
-
-//       return res.status(401).send({
-//         message: 'Email does not exist',
-//       });
-//     }
-//   );
-// };
-
 const forgetPassword = async (req, res) => {
   const errors = validationResult(req);
 
@@ -416,7 +150,9 @@ const forgetPassword = async (req, res) => {
 
   const email = req.body.email;
   try {
-    const user = await getUserByEmail(email);
+    let user = await getUserByEmail(email);
+
+    user = user[0];
 
     if (user) {
       const randomString = randomstring.generate();
@@ -446,47 +182,9 @@ const forgetPassword = async (req, res) => {
   }
 };
 
-// const resetPasswordLoad = (req, res) => {
-//   try {
-//     const token = req.query.token;
-
-//     if (token == undefined) {
-//       return res.status(404).json({ message: 'Token not found' });
-//     }
-
-//     db.query(
-//       `SELECT * FROM password_resets where token=? limit 1`,
-//       token,
-//       function (error, result, fields) {
-//         if (error) {
-//           console.log(error);
-//         }
-
-//         if (result !== undefined && result.length > 0) {
-//           db.query(
-//             `SELECt * FROM users where email=? limit 1`,
-//             result[0].email,
-//             function (error, result, fields) {
-//               if (error) {
-//                 console.log(error);
-//               }
-
-//               res.render('reset-password', { user: result[0] });
-//             }
-//           );
-//         } else {
-//           return res.status(404).json({ message: 'Invalid token' });
-//         }
-//       }
-//     );
-//   } catch (err) {
-//     console.log(err.message);
-//   }
-// };
-
 const resetPasswordLoad = async (req, res) => {
   try {
-    const token = req.query.token;
+    const token = req.body.token;
 
     if (token === undefined) {
       return res.status(404).json({ message: 'Token not found' });
@@ -498,7 +196,7 @@ const resetPasswordLoad = async (req, res) => {
       const user = await getUserByEmail(passwordResetEntry.email);
 
       if (user) {
-        res.render('reset-password', { user });
+        return res.status(200).send({ tokenValidated: true });
       } else {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -513,39 +211,20 @@ const resetPasswordLoad = async (req, res) => {
   }
 };
 
-// const resetPassword = (req, res) => {
-//   if (req.body.password != req.body.confirm_password) {
-//     return res.status(404).json({ message: 'Passwrod not matched' });
-//   }
-
-//   bcrypt.hash(req.body.password, 10, (err, hash) => {
-//     if (err) {
-//       console.log(err);
-//     }
-
-//     db.query(`DELETE FROM password_resets where email = '${req.body.email}'`);
-
-//     db.query(
-//       `UPDATE users SET password = '${hash}' where id = '${req.body.user_id}'`
-//     );
-
-//     return res.status(200).send({
-//       message: 'Password reset successfully',
-//     });
-//   });
-// };
-
 const resetPassword = async (req, res) => {
-  if (req.body.password !== req.body.confirm_password) {
-    return res.status(404).json({ message: 'Password not matched' });
-  }
+  const { token } = req.body;
+
+  const passwordResetDetails = await getPasswordResetByToken(token);
+
+  if (!passwordResetDetails)
+    return res.status(400).json({ message: 'invalid token' });
 
   try {
     const hash = await generateHash(req.body.password);
 
-    await deletePasswordResetByEmail(req.body.email);
+    await deletePasswordResetByEmail(passwordResetDetails.email);
 
-    await updateUserPassword(req.body.user_id, hash);
+    await updateUserPassword(passwordResetDetails.email, hash);
 
     return res.status(200).send({
       message: 'Password reset successfully',
@@ -679,9 +358,33 @@ const deletePasswordResetByEmail = (email) => {
   return executeQuery(query, [email]);
 };
 
-const updateUserPassword = (userId, hash) => {
-  const query = `UPDATE users SET password = ? WHERE id = ?`;
-  return executeQuery(query, [hash, userId]);
+const updateUserPassword = (email, hash) => {
+  const query = `UPDATE users SET password = ? WHERE email = ?`;
+  return executeQuery(query, [hash, email]);
+};
+
+const encodeToBase32 = (hex) => {
+  const base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; // RFC 4648 (encoding scheme)
+  let bits = '';
+  let result = '';
+
+  // Convert the hex string to a binary string
+  for (let i = 0; i < hex.length; i++) {
+    bits += ('0000' + parseInt(hex[i], 16).toString(2)).slice(-4);
+  }
+
+  // Pad the binary string with zeros to a multiple of 5
+  bits += '0'.repeat(5 - (bits.length % 5));
+
+  // Convert the binary string to a base32 string
+  for (let i = 0; i < bits.length; i += 5) {
+    let index = parseInt(bits.slice(i, i + 5), 2);
+    result += base32Alphabet[index];
+  }
+
+  result = result.slice(0, 32);
+
+  return result;
 };
 
 module.exports = {
@@ -691,4 +394,5 @@ module.exports = {
   resetPasswordLoad,
   resetPassword,
   enable2FA,
+  getQRCode,
 };

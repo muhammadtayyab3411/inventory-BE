@@ -16,8 +16,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: '*',
-    methods: ['POST', 'GET'],
-    credentials: true,
   })
 );
 app.use(cookieParser());
