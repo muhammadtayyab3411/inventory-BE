@@ -24,6 +24,7 @@ const createUsersTableQuery = `
     is_admin INT,
     is_verified INT,
     last_login DATE,
+    qrCode TEXT,
     secret_key VARCHAR(255),
     created_at DATE,
     updated_at DATE
