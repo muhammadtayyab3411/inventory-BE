@@ -30,4 +30,12 @@ router.get('/isUserLoggedIn', auth, (req, res) =>
   res.status(200).json({ message: 'user logged in' })
 );
 
+router.get('/userDetail', auth, (req, res) =>
+  userController.getUserDetail(req, res)
+);
+
+router.post('/userDetail', auth, (req, res) =>
+  userController.saveUserDetail(req, res)
+);
+
 module.exports = router;

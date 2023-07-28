@@ -237,6 +237,86 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const saveUserDetail = async (req, res) => {
+  try {
+    const {
+      firstName,
+      lastName,
+      phone,
+      country,
+      language,
+      profilePicture,
+      user_id,
+    } = req.body;
+
+    // Construct the INSERT query with ON DUPLICATE KEY UPDATE
+    const query = `
+        INSERT INTO users_detail (first_name, last_name, phone, country, language, profile_picture, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          first_name = VALUES(first_name),
+          last_name = VALUES(last_name),
+          phone = VALUES(phone),
+          country = VALUES(country),
+          language = VALUES(language),
+          profile_picture = VALUES(profile_picture)
+      `;
+
+    // Define the parameter values for the query
+    const params = [
+      firstName,
+      lastName,
+      phone,
+      country,
+      language,
+      profilePicture,
+      user_id,
+    ];
+
+    // Execute the query using the executeQuery function
+    await executeQuery(query, params);
+
+    return res
+      .status(200)
+      .json({ message: 'User details saved or updated successfully' });
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(500)
+      .json({ message: 'An error occurred while processing the request' });
+  }
+};
+
+const getUserDetail = async (req, res) => {
+  const { user_id } = req.body;
+
+  try {
+    const query = `
+      SELECT first_name, last_name, phone, country, language, profile_picture
+      FROM users_detail
+      WHERE user_id = ?
+    `;
+
+    const params = [user_id];
+
+    const result = await executeQuery(query, params);
+
+    // Check if a user with the given user_id was found
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const userDetail = result[0];
+
+    return res.status(200).json(userDetail);
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(500)
+      .json({ message: 'An error occurred while processing the request' });
+  }
+};
+
 const getUserByEmail = (email) => {
   return new Promise((resolve, reject) => {
     db.query(
@@ -395,4 +475,6 @@ module.exports = {
   resetPassword,
   enable2FA,
   getQRCode,
+  saveUserDetail,
+  getUserDetail,
 };
