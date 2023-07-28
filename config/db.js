@@ -64,8 +64,6 @@ connection.connect((error) => {
         return;
       }
 
-      console.log(`Using database ${dbName}`);
-
       // Create the users table
       connection.query(createUsersTableQuery, (usersTableError) => {
         if (usersTableError) {
