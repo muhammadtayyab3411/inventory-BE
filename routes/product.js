@@ -15,4 +15,10 @@ router.get('/getProductsWithPagination', auth, (req, res) =>
   product.getProductsWithPagination(req, res)
 );
 
+router.post('/productSold', auth, (req, res) => product.itemSold(req, res));
+
+router.post('/getProductReport', auth, (req, res) =>
+  product.getProductReport(req, res)
+);
+
 module.exports = router;
