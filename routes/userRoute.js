@@ -34,6 +34,10 @@ router.get('/userDetail', auth, (req, res) =>
   userController.getUserDetail(req, res)
 );
 
+router.post('/userDetailById', auth, (req, res) =>
+  userController.getUserDetailById(req, res)
+);
+
 router.post('/userDetail', auth, (req, res) =>
   userController.saveUserDetail(req, res)
 );

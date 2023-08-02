@@ -239,42 +239,50 @@ const resetPassword = async (req, res) => {
 
 const saveUserDetail = async (req, res) => {
   try {
-    const {
-      firstName,
-      lastName,
-      phone,
-      country,
-      language,
-      profilePicture,
-      user_id,
-    } = req.body;
+    const { firstName, lastName, phone, country, language, profilePicture } =
+      req.body;
 
-    // Construct the INSERT query with ON DUPLICATE KEY UPDATE
-    const query = `
-        INSERT INTO users_detail (first_name, last_name, phone, country, language, profile_picture, user_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          first_name = VALUES(first_name),
-          last_name = VALUES(last_name),
-          phone = VALUES(phone),
-          country = VALUES(country),
-          language = VALUES(language),
-          profile_picture = VALUES(profile_picture)
+    // Check if the user details already exist
+    const checkQuery = 'SELECT * FROM users_detail WHERE user_id = ? LIMIT 1';
+    const checkParams = [req.user.id];
+    const existingUser = await executeQuery(checkQuery, checkParams);
+
+    if (existingUser.length > 0) {
+      // User details exist, update the existing row
+      const updateQuery = `
+        UPDATE users_detail
+        SET first_name = ?, last_name = ?, phone = ?, country = ?, language = ?, profile_picture = ?
+        WHERE user_id = ?
       `;
+      const updateParams = [
+        firstName,
+        lastName,
+        phone,
+        country,
+        language,
+        profilePicture,
+        req.user.id,
+      ];
 
-    // Define the parameter values for the query
-    const params = [
-      firstName,
-      lastName,
-      phone,
-      country,
-      language,
-      profilePicture,
-      user_id,
-    ];
+      await executeQuery(updateQuery, updateParams);
+    } else {
+      // User details don't exist, insert a new row
+      const insertQuery = `
+        INSERT INTO users_detail (user_id, first_name, last_name, phone, country, language, profile_picture)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `;
+      const insertParams = [
+        req.user.id,
+        firstName,
+        lastName,
+        phone,
+        country,
+        language,
+        profilePicture,
+      ];
 
-    // Execute the query using the executeQuery function
-    await executeQuery(query, params);
+      await executeQuery(insertQuery, insertParams);
+    }
 
     return res
       .status(200)
@@ -288,9 +296,44 @@ const saveUserDetail = async (req, res) => {
 };
 
 const getUserDetail = async (req, res) => {
+  try {
+    const userQuery = `SELECT email FROM users WHERE id = ?`;
+    const query = `
+      SELECT first_name, last_name, phone, country, language, profile_picture
+      FROM users_detail
+      WHERE user_id = ?
+    `;
+
+    const params = [req.user.id];
+
+    const result = await executeQuery(query, params);
+    const userInfo = await executeQuery(userQuery, [req.user.id]);
+
+    // Check if a user with the given user_id was found
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const userDetail = result[0];
+
+    return res.status(200).json({ email: userInfo[0].email, userDetail });
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(500)
+      .json({ message: 'An error occurred while processing the request' });
+  }
+};
+
+const getUserDetailById = async (req, res) => {
   const { user_id } = req.body;
 
+  if (!user_id)
+    return res
+      .status(400)
+      .json({ status: 'error', message: 'no user specified' });
   try {
+    const userQuery = `SELECT email FROM users WHERE id = ?`;
     const query = `
       SELECT first_name, last_name, phone, country, language, profile_picture
       FROM users_detail
@@ -300,6 +343,7 @@ const getUserDetail = async (req, res) => {
     const params = [user_id];
 
     const result = await executeQuery(query, params);
+    const userInfo = await executeQuery(userQuery, [req.user.id]);
 
     // Check if a user with the given user_id was found
     if (result.length === 0) {
@@ -308,7 +352,7 @@ const getUserDetail = async (req, res) => {
 
     const userDetail = result[0];
 
-    return res.status(200).json(userDetail);
+    return res.status(200).json({ email: userInfo[0].email, userDetail });
   } catch (err) {
     console.log(err);
     return res
@@ -477,4 +521,5 @@ module.exports = {
   getQRCode,
   saveUserDetail,
   getUserDetail,
+  getUserDetailById,
 };
