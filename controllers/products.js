@@ -74,7 +74,7 @@ const getAllProducts = async (req, res) => {
   try {
     // Construct the SELECT query to retrieve all products
     const query = `
-      SELECT category, buying_price, quantity, unit, expiry_date, threshold_value, name, user_id
+      SELECT id, category, buying_price, quantity, unit, expiry_date, threshold_value, name, user_id
       FROM products
     `;
 
