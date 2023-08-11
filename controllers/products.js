@@ -31,6 +31,9 @@ const createProduct = async (req, res, socket) => {
     // Execute the query using the executeQuery function
     await executeQuery(query, params);
 
+    // update total products in the respective category
+    await updateCategoryTotalProducts(category);
+
     socket.emit('newproduct', { message: 'A new product has been added' });
 
     return res.status(201).json({ message: 'Product created successfully' });
@@ -350,6 +353,20 @@ const fetchSalesAndCalculateMetrics = async (productId) => {
     };
   } catch (err) {
     console.error('Error while fetching sales and calculating metrics:', err);
+    throw err;
+  }
+};
+
+const updateCategoryTotalProducts = async (categoryId) => {
+  try {
+    const updateQuery = `
+      UPDATE categories
+      SET total_products = total_products + 1
+      WHERE id = ?
+    `;
+
+    await executeQuery(updateQuery, [categoryId]);
+  } catch (err) {
     throw err;
   }
 };

@@ -11,4 +11,8 @@ router.post('/createProduct', (req, res) =>
   category.createProductInCategory(req, res)
 );
 
+router.post('/getProductsWithCategory', (req, res) =>
+  category.getProductsWithCategory(req, res)
+);
+
 module.exports = router;

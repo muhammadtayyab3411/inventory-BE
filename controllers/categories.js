@@ -73,6 +73,27 @@ const createProductInCategory = async (req, res) => {
   }
 };
 
+const getProductsWithCategory = async (req, res) => {
+  const { category } = req.body;
+
+  try {
+    const products = await fetchProductsWithCategory(category);
+
+    return res.status(200).json(products);
+  } catch (err) {
+    console.error('Error in getProductsWithCategory:', err);
+    return res
+      .status(500)
+      .json({ message: 'An error occurred while fetching products' });
+  }
+};
+
+// Helper function to fetch products with a specific category from the database
+const fetchProductsWithCategory = (category) => {
+  const query = 'SELECT * FROM products WHERE category = ?';
+  return executeQuery(query, [category]);
+};
+
 const insertCategory = (name, productType) => {
   const query = 'INSERT INTO categories (name, product_type) VALUES (?, ?)';
   return executeQuery(query, [name, productType]);
@@ -95,4 +116,9 @@ const executeQuery = (query, params) => {
   });
 };
 
-module.exports = { getAllCategories, createCategory, createProductInCategory };
+module.exports = {
+  getAllCategories,
+  createCategory,
+  createProductInCategory,
+  getProductsWithCategory,
+};
