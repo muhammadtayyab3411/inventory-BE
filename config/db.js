@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS ${dbName}.categories (
   product_type TEXT,
   date_created date,
   status VARCHAR(255),
-  total_product INT
+  total_products INT
 )
 `;
 
