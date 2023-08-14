@@ -10,7 +10,7 @@ const connection = mysql.createConnection({
 });
 
 // Name of the database to be created
-const dbName = 'koboweb';
+const dbName = 'sql6639687';
 
 // SQL queries to create the database and tables
 const createDatabaseQuery = `CREATE DATABASE IF NOT EXISTS ${dbName}`;
