@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-const createProduct = async (req, res, socket) => {
+const createProduct = async (req, res) => {
   const {
     category,
     buying_price,
@@ -33,8 +33,6 @@ const createProduct = async (req, res, socket) => {
 
     // update total products in the respective category
     await updateCategoryTotalProducts(category);
-
-    socket.emit('newproduct', { message: 'A new product has been added' });
 
     return res.status(201).json({ message: 'Product created successfully' });
   } catch (err) {

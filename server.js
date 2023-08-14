@@ -11,12 +11,12 @@ const bodyParser = require('body-parser');
 const app = express();
 
 const http = require('http').createServer(app);
-const io = require('socket.io')(http, {
-  cors: {
-    origin: 'http://localhost:3000',
-    methods: ['GET', 'POST'],
-  },
-});
+// const io = require('socket.io')(http, {
+//   cors: {
+//     origin: 'http://localhost:3000',
+//     methods: ['GET', 'POST'],
+//   },
+// });
 
 const port = process.env.PORT || 8000;
 
@@ -31,7 +31,7 @@ app.use(
 app.use(cookieParser());
 
 app.use('/api', userRouter);
-app.use('/api/products', productRouter(io));
+app.use('/api/products', productRouter);
 app.use('/api/categories', categoryRouter);
 
 app.use((err, req, res, next) => {
@@ -42,22 +42,22 @@ app.use((err, req, res, next) => {
   });
 });
 
-io.on('connection', (socket) => {
-  console.log('A user connected');
+// io.on('connection', (socket) => {
+//   console.log('A user connected');
 
-  // Handle the order placement event
-  socket.on('placeOrder', (data) => {
-    // Process the order and save it to the database
-    console.log(data);
-    socket.emit('orderNotification', {
-      message: 'Your order has been placed!',
-    });
-  });
+//   // Handle the order placement event
+//   socket.on('placeOrder', (data) => {
+//     // Process the order and save it to the database
+//     console.log(data);
+//     socket.emit('orderNotification', {
+//       message: 'Your order has been placed!',
+//     });
+//   });
 
-  // Handle disconnection
-  socket.on('disconnect', () => {
-    console.log('A user disconnected');
-  });
-});
+//   // Handle disconnection
+//   socket.on('disconnect', () => {
+//     console.log('A user disconnected');
+//   });
+// });
 
 http.listen(port, () => console.log(`Listening on port ${port}`));
